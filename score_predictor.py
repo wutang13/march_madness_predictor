@@ -2,6 +2,8 @@ from numpy import genfromtxt
 from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVR, SVC
+from tensorflow import keras
+import tensorflow as tf
 
 
 def predict_score_regressor():
@@ -47,7 +49,7 @@ def predict_score_regressor():
     print("Correct:{} Incorrect:{} Precentage Correct: {}".format(correct, incorrect, (correct/(correct+incorrect))))
 
 
-def predict_score_classifier():
+def predict_winner_classifier():
     cbb_data = genfromtxt("ncaa_data_classifier.csv", delimiter=',')
     cbb_targets = genfromtxt("ncaa_targets_classifier.csv", delimiter=",")
 
@@ -70,5 +72,35 @@ def predict_score_classifier():
     print("Cross Validation Accuracy: {}".format(cross_val_score(svm, scaled_cbb_data, cbb_targets, cv=10).mean()))
 
 
+def predict_winner_tensorflow():
+    cbb_data = genfromtxt("ncaa_data_classifier.csv", delimiter=',')
+    cbb_targets = genfromtxt("ncaa_targets_classifier.csv", delimiter=",")
+
+    scaler = StandardScaler()
+    scaler.fit(cbb_data)
+    scaled_cbb_data = scaler.transform(cbb_data)
+
+    model = keras.Sequential([
+        keras.layers.Dense(128, activation=tf.nn.relu),
+        keras.layers.Dense(128, activation=tf.nn.relu),
+        keras.layers.Dense(128, activation=tf.nn.relu),
+        keras.layers.Dense(2, activation=tf.nn.softmax)]
+    )
+
+    model.compile(
+        optimizer='adam',
+        loss="sparse_categorical_crossentropy",
+        metrics=['accuracy']
+    )
+
+    x_train, x_test, y_train, y_test = train_test_split(scaled_cbb_data, cbb_targets)
+
+    model.fit(x_train, y_train, validation_split=0.33, epochs=10)
+    test_loss, test_acc = model.evaluate(x_test, y_test)
+
+    print("Accuracy: {}".format(test_acc))
+
+
 if __name__ == '__main__':
-    predict_score_classifier()
+    predict_winner_tensorflow()
+    predict_winner_classifier()
