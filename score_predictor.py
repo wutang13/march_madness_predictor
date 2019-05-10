@@ -7,8 +7,8 @@ import tensorflow as tf
 
 
 def predict_score_regressor():
-    cbb_data = genfromtxt("ncaa_data_score.csv", delimiter=',')
-    cbb_targets = genfromtxt("ncaa_targets_score.csv", delimiter=",")
+    cbb_data = genfromtxt("Data/ncaa_data_score.csv", delimiter=',')
+    cbb_targets = genfromtxt("Data/ncaa_targets_score.csv", delimiter=",")
 
     scaler = StandardScaler()
     scaler.fit(cbb_data)
@@ -50,8 +50,8 @@ def predict_score_regressor():
 
 
 def predict_winner_classifier():
-    cbb_data = genfromtxt("ncaa_data_classifier.csv", delimiter=',')
-    cbb_targets = genfromtxt("ncaa_targets_classifier.csv", delimiter=",")
+    cbb_data = genfromtxt("Data/ncaa_data_classifier.csv", delimiter=',')
+    cbb_targets = genfromtxt("Data/ncaa_targets_classifier.csv", delimiter=",")
 
     scaler = StandardScaler()
     scaler.fit(cbb_data)
@@ -69,12 +69,12 @@ def predict_winner_classifier():
 
     svm = SVC(kernel='rbf', C=100, gamma=0.001)
 
-    print("Cross Validation Accuracy: {}".format(cross_val_score(svm, scaled_cbb_data, cbb_targets, cv=10).mean()))
+    print("SVM Cross Validation Accuracy: {}".format(cross_val_score(svm, scaled_cbb_data, cbb_targets, cv=10).mean()))
 
 
 def predict_winner_tensorflow():
-    cbb_data = genfromtxt("ncaa_data_classifier.csv", delimiter=',')
-    cbb_targets = genfromtxt("ncaa_targets_classifier.csv", delimiter=",")
+    cbb_data = genfromtxt("Data/ncaa_data_classifier.csv", delimiter=',')
+    cbb_targets = genfromtxt("Data/ncaa_targets_classifier.csv", delimiter=",")
 
     scaler = StandardScaler()
     scaler.fit(cbb_data)

@@ -64,7 +64,7 @@ def get_tournament_stats(year):
         else:
             losers.append(winner.find_previous_sibling("div"))
 
-    f = open("ncaa_data.csv", "a+")
+    f = open("Data/ncaa_data.csv", "a+")
 
     # winner_scores = []
     # loser_scores = []
