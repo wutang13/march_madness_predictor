@@ -1,6 +1,15 @@
+import re
+
 from bs4 import BeautifulSoup
 import requests
 import lxml
+
+
+class Team:
+    """Holds data for a particular team when predicting a bracket"""
+    def __init__(self, name, stats):
+        self.name = name
+        self.stats = stats
 
 
 # Extract the stats for a team and write it to a csv file
@@ -47,11 +56,11 @@ def get_team_stats(url):
     return formatted_stats
 
 
-def get_tournament_stats(year):
+def get_training_data(year):
     # get the content of a ncaa bracket
     url = "https://www.sports-reference.com/cbb/postseason/{}-ncaa.html".format(year)
     bracket_page = requests.get(url)
-    bracket_soup = BeautifulSoup(bracket_page.content, "html.parser")
+    bracket_soup = BeautifulSoup(bracket_page.content, "lxml")
 
     # Initialize list of teams into winners and losers of each game
     winners = bracket_soup.find_all(class_="winner")
@@ -96,10 +105,48 @@ def get_tournament_stats(year):
     f.close()
 
 
-if __name__ == '__main__':
-    stats_year = 2019
+# Used to get the initial information in order to predict a bracket
+def get_bracket(year):
+    url = "https://www.sports-reference.com/cbb/postseason/{}-ncaa.html".format(year)
+    bracket_page = requests.get(url)
+    bracket_soup = BeautifulSoup(bracket_page.content, "lxml")
 
-    while stats_year > 1989:
-        get_tournament_stats(stats_year)
-        print("{} Data Written".format(stats_year))
-        stats_year -= 1
+    bracket_rounds = bracket_soup.find_all(class_="round")
+
+    _first_round_indices = [0, 5, 10, 15]
+    first_round = []
+
+    for index in _first_round_indices:
+        first_round.append(bracket_rounds[index])
+
+    schools = []
+    for division in first_round:
+        schools += division.find_all(href=re.compile("schools"))
+
+    teams = []
+    for school in schools:
+        team_data = get_team_stats("https://www.sports-reference.com{}".format(school["href"]))
+        split_data = team_data.split(",")
+
+        # Remove Conference Feature
+        filtered_data = split_data[1:]
+        # Remove Minutes Played Feature
+        filtered_data.pop(1)
+        # Remove Offensive/Defensive Rebounds Feature
+        filtered_data.pop(13)
+        filtered_data.pop(13)
+        # Remove Personal Fouls Feature
+        filtered_data.pop(18)
+        # Remove blank item at end
+        filtered_data.pop()
+
+        teams.append(Team(school.string, filtered_data))
+
+    for team in teams:
+        print(team.name, team.stats)
+
+    return teams
+
+
+if __name__ == '__main__':
+    get_bracket(2019)

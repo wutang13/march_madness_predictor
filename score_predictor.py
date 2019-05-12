@@ -1,28 +1,28 @@
-from numpy import genfromtxt
+import numpy as np
 from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVR, SVC
 from tensorflow import keras
 import tensorflow as tf
+from get_team_data import get_bracket
+
+
+class Game:
+    def __init__(self, team_1, team_2):
+        self.team_1 = team_1
+        self.team_2 = team_2
+        self.winner = -1
 
 
 def predict_score_regressor():
-    cbb_data = genfromtxt("Data/ncaa_data_score.csv", delimiter=',')
-    cbb_targets = genfromtxt("Data/ncaa_targets_score.csv", delimiter=",")
+    cbb_data = np.genfromtxt("Data/ncaa_data_score.csv", delimiter=',')
+    cbb_targets = np.genfromtxt("Data/ncaa_targets_score.csv", delimiter=",")
 
     scaler = StandardScaler()
     scaler.fit(cbb_data)
     scaled_cbb_data = scaler.transform(cbb_data)
 
     x_train, x_test, y_train, y_test = train_test_split(scaled_cbb_data, cbb_targets)
-
-    # c_params = [0.001, 0.01, 0.1, 1.0, 10, 100]
-    # gamma_params = [0.001, 0.01, 0.1, 1.0, 10, 100]
-
-    # param_grid = {"C": c_params, "gamma": gamma_params}
-
-    # grid_search = GridSearchCV(SVR(), param_grid, cv=5)
-    # grid_search.fit(x_train, y_train)
 
     svm = SVR(kernel='rbf', C=100, gamma=0.001).fit(x_train, y_train)
     svm.fit(x_train, y_train)
@@ -50,20 +50,12 @@ def predict_score_regressor():
 
 
 def predict_winner_classifier():
-    cbb_data = genfromtxt("Data/ncaa_data_classifier.csv", delimiter=',')
-    cbb_targets = genfromtxt("Data/ncaa_targets_classifier.csv", delimiter=",")
+    cbb_data = np.genfromtxt("Data/ncaa_data_classifier.csv", delimiter=',')
+    cbb_targets = np.genfromtxt("Data/ncaa_targets_classifier.csv", delimiter=",")
 
     scaler = StandardScaler()
     scaler.fit(cbb_data)
     scaled_cbb_data = scaler.transform(cbb_data)
-
-    '''c_params = [0.0001, 0.001, 0.01, 0.1, 1.0, 10, 100, 1000]
-    gamma_params = [0.0001, 0.001, 0.01, 0.1, 1.0, 10, 100, 1000]
-
-    param_grid = {"C": c_params, "gamma": gamma_params}
-
-    grid_search = GridSearchCV(SVC(), param_grid, cv=5)
-    grid_search.fit(x_train, y_train)'''
 
     # x_train, x_test, y_train, y_test = train_test_split(scaled_cbb_data, cbb_targets)
 
@@ -73,8 +65,8 @@ def predict_winner_classifier():
 
 
 def predict_winner_tensorflow():
-    cbb_data = genfromtxt("Data/ncaa_data_classifier.csv", delimiter=',')
-    cbb_targets = genfromtxt("Data/ncaa_targets_classifier.csv", delimiter=",")
+    cbb_data = np.genfromtxt("Data/ncaa_data_classifier.csv", delimiter=',')
+    cbb_targets = np.genfromtxt("Data/ncaa_targets_classifier.csv", delimiter=",")
 
     scaler = StandardScaler()
     scaler.fit(cbb_data)
@@ -95,12 +87,77 @@ def predict_winner_tensorflow():
 
     x_train, x_test, y_train, y_test = train_test_split(scaled_cbb_data, cbb_targets)
 
-    model.fit(x_train, y_train, validation_split=0.33, epochs=10)
+    model.fit(x_train, y_train, epochs=10)
     test_loss, test_acc = model.evaluate(x_test, y_test)
 
     print("Accuracy: {}".format(test_acc))
 
 
+def create_bracket_round(teams):
+    game_index = 0
+    team_count = len(teams)
+
+    games = []
+
+    while game_index < team_count:
+        games.append(Game(teams[game_index], teams[game_index+1]))
+        game_index += 2
+
+    return games
+
+
+def create_round_dataset(games):
+    first_game = games[0].team_1.stats + games[0].team_2.stats
+    game_array = [first_game]
+    dataset = np.array(game_array)
+
+    for game in games[1:]:
+        dataset = np.append(dataset, [game.team_1.stats + game.team_2.stats], axis=0)
+
+    return dataset.astype(np.float)
+
+
+def predict_bracket(training_data_file, targets_file):
+    cbb_data = np.genfromtxt(training_data_file, delimiter=',')
+    cbb_targets = np.genfromtxt(targets_file, delimiter=",")
+
+    # Remove year that is being predicted from training data
+    cbb_data = cbb_data[64:]
+    cbb_targets = cbb_targets[64:]
+
+    scaler = StandardScaler()
+    scaler.fit(cbb_data)
+    scaled_training_data = scaler.transform(cbb_data)
+
+    svm = SVC(kernel='rbf', C=100, gamma=0.001)
+    svm.fit(scaled_training_data, cbb_targets)
+
+    print("Getting Bracket Data...")
+    teams = get_bracket(2019)
+    print("Bracket Data Retrieved!")
+
+    teams_in = teams
+
+    for i in range(6):
+        games_in_round = create_bracket_round(teams_in)
+        round_dataset = create_round_dataset(games_in_round)
+
+        scaled_tournament_data = scaler.transform(round_dataset)
+
+        round_predictions = svm.predict(scaled_tournament_data)
+        round_winners = {}
+
+        for pred, game in zip(round_predictions, games_in_round):
+            if pred:
+                round_winners[game.team_2.name] = game.team_2
+            else:
+                round_winners[game.team_1.name] = game.team_1
+
+            game.winner = pred
+
+        print(",".join(list(round_winners.keys())))
+        teams_in = list(round_winners.values())
+
+
 if __name__ == '__main__':
-    predict_winner_tensorflow()
-    predict_winner_classifier()
+    predict_bracket("Data/ncaa_data_classifier.csv", "Data/ncaa_targets_classifier.csv")
